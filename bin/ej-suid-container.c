@@ -187,7 +187,7 @@ static int stdout_external_fd = -1;
 static char *language_name = NULL;
 static char *exchange_dir = NULL;
 
-enum { DEFAULT_LIMIT_VM_SIZE = 67108864 };
+enum { DEFAULT_LIMIT_VM_SIZE = 2147483647 };
 enum { DEFAULT_LIMIT_CPU_TIME_MS = 1000 };
 
 // resource limits
