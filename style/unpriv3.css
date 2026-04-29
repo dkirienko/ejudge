@@ -619,10 +619,11 @@ li .nProbOk:hover {
 }
 
 #probNavTaskArea pre {
-	color: #555555;
-	background: #dfdfdf;
+	color: black;
+	background: rgba(255, 255, 255, 0.37)
+// background: white;
     padding: 7px 10px;
-	border: 1px solid #c7c7c7;
+// border: 1px solid #c7c7c7;
 }
 
 #l13 {
