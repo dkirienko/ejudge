@@ -4126,6 +4126,14 @@ generate_install_script(FILE *f, int batch_install_script, int container_mode)
                     style_src_dir, style_prefix);
         gen_cmd_run(f, "ln -sf \"%s/unpriv.js\" \"%sunpriv.js\"",
                     style_src_dir, style_prefix);
+        gen_cmd_run(f, "ln -sf \"%s/fastejudge.css\" \"%sfastejudge.css\"",
+                    style_src_dir, style_prefix);
+        gen_cmd_run(f, "ln -sf \"%s/fastejudge.js\" \"%sfastejudge.js\"",
+                    style_src_dir, style_prefix);
+        gen_cmd_run(f, "ln -sf \"%s/prism.css\" \"%sprism.css\"",
+                    style_src_dir, style_prefix);
+        gen_cmd_run(f, "ln -sf \"%s/prism.js\" \"%sprism.js\"",
+                    style_src_dir, style_prefix);
       }
     }
   }

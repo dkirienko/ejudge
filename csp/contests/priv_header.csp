@@ -3,6 +3,8 @@
 <meta http-equiv="Content-type" content='text/html; charset=<s:config name="charset" />' />
 <link rel="stylesheet" href='<s:config name="style-prefix" />priv.css' type="text/css" />
 <link rel="stylesheet" href='<s:config name="style-prefix" />ejudge3_ss.css' type="text/css" />
+<link rel="stylesheet" href='<s:config name="style-prefix" />prism.css' type="text/css" />
+<link rel="stylesheet" href='<s:config name="style-prefix" />fastejudge.css' type="text/css" />
 <script>
 MathJax = {
   chtml: {
@@ -17,6 +19,8 @@ MathJax = {
 <script type="text/javascript" id="MathJax-script" async src="<s:config name="style-prefix" />mathjax/tex-mml-chtml.js">
 </script>
 <script type="text/javascript" charset="UTF-8" src="<s:config name="style-prefix"/>priv.js"></script>
+<script type="text/javascript" charset="UTF-8" defer src="<s:config name="style-prefix"/>prism.js"></script>
+<script type="text/javascript" charset="UTF-8" defer src="<s:config name="style-prefix"/>fastejudge.js"></script>
 <title><s:v escape="false" value="ns_unparse_role(phr->role)" /><% if (phr->user_id > 0 || phr->contest_id > 0) { %> [<% if (phr->user_id > 0) { %><s:v checkExpr="" escape="false" value="phr->name_arm" /><% } else { %>?<% } %><% if (phr->contest_id > 0) { %>, <s:v value="phr->contest_id" /><% if (extra) { %>, <s:v checkExpr="" escape="false" value="extra->contest_arm" /><% } %><% } %>]<% } %>: <s:v escape="false" value="title" /></title>
 </head>
 <body>
