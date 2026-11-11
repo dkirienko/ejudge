@@ -100,6 +100,66 @@
     return String(value || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
+  const RUN_COLUMN_WEIGHTS = {
+    'run id': 5,
+    'uuid': 10,
+    'storage flags': 8,
+    'time': 10,
+    'abs. time': 8,
+    'rel. time': 8,
+    'ns': 4,
+    'size': 5,
+    'mime type': 8,
+    'ip': 8,
+    'sha1': 10,
+    'user id': 5,
+    'login': 8,
+    'user': 16,
+    'user name': 16,
+    'prob id': 5,
+    'problem': 23,
+    'variant': 4,
+    'lang id': 4,
+    'language': 8,
+    'eoln type': 5,
+    'tokens': 5,
+    'result': 10,
+    'status': 10,
+    'failed': 4,
+    'tests': 4,
+    'score': 5,
+    'score adj.': 5,
+    'saved status': 8,
+    'saved test': 5,
+    'saved score': 5,
+    'verdict bits': 8,
+    'last change': 9,
+    'external user': 8,
+    'notify info': 8,
+    'group scores': 10,
+    'source': 4,
+    'report': 5
+  };
+
+  const DEFAULT_COLUMN_WEIGHT = 6;
+
+  function runColumnWeight(header) {
+    return RUN_COLUMN_WEIGHTS[normalizeProblemText(header).toLowerCase()] || DEFAULT_COLUMN_WEIGHT;
+  }
+
+  function buildRunColgroup(headers) {
+    const weights = headers.map(runColumnWeight);
+    const total = weights.reduce(function (sum, weight) { return sum + weight; }, 0);
+    const colgroup = document.createElement('colgroup');
+    if (total <= 0) return colgroup;
+    for (const weight of weights) {
+      const col = document.createElement('col');
+      col.style.width = (weight / total * 100).toFixed(3) + '%';
+      colgroup.appendChild(col);
+    }
+    return colgroup;
+  }
+
   function problemVariant(value) {
     const match = normalizeProblemText(value).match(/-(\d+|\?)$/);
     return match ? match[1] : null;
@@ -538,18 +598,30 @@
     cell.appendChild(pre);
   }
 
-  function appendProblemName(cell, run) {
+  function decorateProblemCell(cell, run) {
+    if (!cell) return;
+    cell.classList.add('fe-problem-cell');
     if (!run.problemLongName) return;
-    const title = document.createElement('div');
-    title.className = 'fe-problem-name';
-    title.textContent = (run.problemLabel ? run.problemLabel + ' — ' : '') + run.problemLongName;
-    title.title = title.textContent;
-    cell.appendChild(title);
+    const shortText = normalizeProblemText(run.problemLabel || cell.textContent);
+    const longText = normalizeProblemText(run.problemLongName);
+    if (!longText || longText === shortText) return;
+    cell.textContent = '';
+    if (shortText) {
+      const short = document.createElement('span');
+      short.className = 'fe-problem-short';
+      short.textContent = shortText;
+      cell.appendChild(short);
+      cell.appendChild(document.createTextNode(' — '));
+    }
+    const long = document.createElement('span');
+    long.className = 'fe-problem-long';
+    long.textContent = longText;
+    cell.appendChild(long);
+    cell.title = [shortText, longText].filter(Boolean).join(' — ');
   }
 
-  function renderImage(cell, src, run) {
+  function renderImage(cell, src) {
     cell.textContent = '';
-    appendProblemName(cell, run);
     const image = document.createElement('img');
     image.className = 'fe-image';
     image.src = src;
@@ -956,7 +1028,6 @@
         run.modeCell.appendChild(toggle);
       }
     }
-    appendProblemName(cell, run);
     const content = document.createElement('div');
     content.className = 'fe-solution-content';
     cell.appendChild(content);
@@ -999,13 +1070,11 @@
       renderComments(doc, run.commentsCell, run.commentArea);
       const source = extractSource(doc);
       if (source.kind === 'image') {
-        renderImage(cell, source.src, run);
+        renderImage(cell, source.src);
         return;
       }
       if (source.kind !== 'text') {
-        cell.textContent = '';
-        appendProblemName(cell, run);
-        cell.appendChild(document.createTextNode('Исходный текст недоступен'));
+        cell.textContent = 'Исходный текст недоступен';
         return;
       }
       const state = {
@@ -1118,6 +1187,8 @@
 
   function makeSolutionTable(table) {
     const runs = parseRuns(table);
+    const headers = headerTexts(table);
+    const problemColumn = columnIndex(headers, ['Problem', 'Prob']);
     makeHistoryGroups(runs);
     const solutions = document.createElement('table');
     solutions.className = 'fe-solutions';
@@ -1135,6 +1206,8 @@
       copy.querySelectorAll('a[href^="javascript:"]').forEach(function (link) {
         link.removeAttribute('href');
       });
+      if (problemColumn >= 0) decorateProblemCell(copy.cells[problemColumn], run);
+      nested.appendChild(buildRunColgroup(headers));
       nested.appendChild(copy);
       headCell.appendChild(nested);
       headRow.appendChild(headCell);

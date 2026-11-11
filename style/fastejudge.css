@@ -25,12 +25,27 @@
 .fe-run-copy {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .fe-run-copy td,
 .fe-run-copy th {
-  padding: 2px 4px;
+  padding: 2px 6px;
   font-size: 95%;
+}
+
+.fe-run-copy .fe-problem-cell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.fe-problem-short {
+  font-weight: 600;
+}
+
+.fe-problem-long {
+  font-size: 85%;
+  opacity: 0.8;
 }
 
 .fe-code-row td {
@@ -58,8 +73,13 @@
   cursor: pointer;
 }
 
+.fe-comment-cell {
+  width: 20%;
+  min-width: 140px;
+}
+
 .fe-source-cell {
-  width: 70%;
+  width: auto;
 }
 
 .fe-source {
@@ -77,13 +97,6 @@
   margin: 0 0 4px 0;
   font-size: 90%;
   opacity: 0.8;
-}
-
-.fe-problem-name {
-  margin: 0 0 4px 0;
-  font-size: 90%;
-  font-weight: 600;
-  overflow-wrap: anywhere;
 }
 
 .fe-diff-scroll {
