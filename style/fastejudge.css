@@ -1,0 +1,149 @@
+.fe-toolbar {
+  margin: 8px 0;
+}
+
+.fe-load-solutions {
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.fe-solutions {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.fe-solutions td {
+  vertical-align: top;
+  padding: 4px;
+}
+
+.fe-run-row td {
+  border-top: 1px solid rgba(128, 128, 128, 0.4);
+}
+
+.fe-run-copy {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.fe-run-copy td,
+.fe-run-copy th {
+  padding: 2px 4px;
+  font-size: 95%;
+}
+
+.fe-code-row td {
+  border-bottom: 1px solid rgba(128, 128, 128, 0.4);
+}
+
+.fe-comment {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 95%;
+  resize: vertical;
+}
+
+.fe-buttons {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.fe-buttons button {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.fe-source-cell {
+  width: 70%;
+}
+
+.fe-source {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  max-height: 40em;
+  font-size: 90%;
+  line-height: 1.35;
+  background: rgba(128, 128, 128, 0.08);
+  border-radius: 3px;
+}
+
+.fe-note {
+  margin: 0 0 4px 0;
+  font-size: 90%;
+  opacity: 0.8;
+}
+
+.fe-diff-scroll {
+  max-height: 40em;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 90%;
+  line-height: 1.35;
+  background: rgba(128, 128, 128, 0.08);
+  border-radius: 3px;
+}
+
+.fe-diff {
+  padding: 6px 8px;
+  white-space: pre;
+}
+
+.fe-line {
+  min-height: 1.35em;
+}
+
+.fe-line.add {
+  background: rgba(0, 160, 0, 0.18);
+}
+
+.fe-line.del {
+  background: rgba(200, 0, 0, 0.18);
+}
+
+.fe-line.skip {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+.fe-comments {
+  font-size: 90%;
+}
+
+.fe-comment-item {
+  margin: 2px 0;
+}
+
+.fe-comment-item button {
+  cursor: pointer;
+}
+
+.fe-comment-history-title {
+  display: block;
+  margin-top: 6px;
+}
+
+.fe-comment-history-item {
+  margin: 2px 0 2px 12px;
+  padding-left: 6px;
+  border-left: 2px solid rgba(128, 128, 128, 0.4);
+  white-space: pre-wrap;
+}
+
+.fe-image {
+  max-width: 100%;
+}
+
+.fe-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.fe-sortable:hover {
+  text-decoration: underline;
+}
