@@ -79,6 +79,13 @@
   opacity: 0.8;
 }
 
+.fe-problem-name {
+  margin: 0 0 4px 0;
+  font-size: 90%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .fe-diff-scroll {
   max-height: 40em;
   overflow: auto;

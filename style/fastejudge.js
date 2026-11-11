@@ -96,6 +96,69 @@
       .replace(/-\?$/, '');
   }
 
+  function normalizeProblemText(value) {
+    return String(value || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function problemVariant(value) {
+    const match = normalizeProblemText(value).match(/-(\d+|\?)$/);
+    return match ? match[1] : null;
+  }
+
+  function parseProblemOption(text) {
+    const normalized = normalizeProblemText(text);
+    const variantMatch = normalized.match(/,\s*(?:Variant|Вариант)\s+(\d+)\s*$/i);
+    const variant = variantMatch ? variantMatch[1] : null;
+    const label = variantMatch ? normalized.slice(0, variantMatch.index).trim() : normalized;
+    const separator = label.indexOf(' - ');
+    if (separator < 0) return null;
+    const code = label.slice(0, separator).trim();
+    const longName = label.slice(separator + 3).trim();
+    if (!code || !longName) return null;
+    return {code: code, longName: longName, variant: variant};
+  }
+
+  function buildProblemNameIndex() {
+    const index = [];
+    const seen = new Set();
+    for (const select of document.querySelectorAll('select[name="problem"]')) {
+      for (const option of select.options) {
+        const parsed = parseProblemOption(option.textContent);
+        if (!parsed) continue;
+        const key = parsed.code + '\u0000' + (parsed.variant || '');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        index.push(parsed);
+      }
+    }
+    return index;
+  }
+
+  function resolveProblemLongName(value, index) {
+    if (!index || index.length === 0) return '';
+    const text = normalizeProblemText(value);
+    const code = problemCode(text);
+    if (!code) return '';
+    const variant = problemVariant(text);
+    let match = null;
+    if (variant) {
+      match = index.find(function (item) {
+        return item.code === code && item.variant === variant;
+      });
+    }
+    if (!match) {
+      match = index.find(function (item) {
+        return item.code === code && !item.variant;
+      });
+    }
+    if (!match) {
+      match = index.find(function (item) {
+        return item.code === code;
+      });
+    }
+    return match ? match.longName : '';
+  }
+
   function rowLanguage(row, headers) {
     const direct = cellByHeader(row, headers, ['Language', 'Lang']);
     if (direct) return direct;
@@ -475,8 +538,18 @@
     cell.appendChild(pre);
   }
 
-  function renderImage(cell, src) {
+  function appendProblemName(cell, run) {
+    if (!run.problemLongName) return;
+    const title = document.createElement('div');
+    title.className = 'fe-problem-name';
+    title.textContent = (run.problemLabel ? run.problemLabel + ' — ' : '') + run.problemLongName;
+    title.title = title.textContent;
+    cell.appendChild(title);
+  }
+
+  function renderImage(cell, src, run) {
     cell.textContent = '';
+    appendProblemName(cell, run);
     const image = document.createElement('img');
     image.className = 'fe-image';
     image.src = src;
@@ -883,6 +956,7 @@
         run.modeCell.appendChild(toggle);
       }
     }
+    appendProblemName(cell, run);
     const content = document.createElement('div');
     content.className = 'fe-solution-content';
     cell.appendChild(content);
@@ -925,11 +999,13 @@
       renderComments(doc, run.commentsCell, run.commentArea);
       const source = extractSource(doc);
       if (source.kind === 'image') {
-        renderImage(cell, source.src);
+        renderImage(cell, source.src, run);
         return;
       }
       if (source.kind !== 'text') {
-        cell.textContent = 'Исходный текст недоступен';
+        cell.textContent = '';
+        appendProblemName(cell, run);
+        cell.appendChild(document.createTextNode('Исходный текст недоступен'));
         return;
       }
       const state = {
@@ -1018,16 +1094,20 @@
   function parseRuns(table) {
     const headers = headerTexts(table);
     const sourceColumn = columnIndex(headers, ['Source']);
+    const problemNames = buildProblemNameIndex();
     const runs = [];
     for (const row of Array.from(table.rows).slice(1)) {
       const runId = rowRunId(row, sourceColumn);
       const url = sourceUrl(row, sourceColumn);
       if (runId === null || !url) continue;
+      const problemLabel = cellByHeader(row, headers, ['Problem', 'Prob']);
       runs.push({
         row: row,
         runId: runId,
         sourceUrl: url,
-        problemCode: problemCode(cellByHeader(row, headers, ['Problem', 'Prob'])),
+        problemLabel: problemLabel,
+        problemCode: problemCode(problemLabel),
+        problemLongName: resolveProblemLongName(problemLabel, problemNames),
         language: rowLanguage(row, headers),
         authorFilter: rowAuthorFilter(row, headers),
         previousReason: ''
