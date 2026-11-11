@@ -22,6 +22,7 @@
   };
 
   const STATUS_FILTER = '(status == OK || status == PR || status == RJ)';
+  const LONG_BLOCK_LINES = 30;
 
   function trimmedText(element) {
     return element ? element.textContent.trim() : '';
@@ -433,14 +434,15 @@
         parts.forEach(function (part, index) {
           if (index > 0) lines.push(document.createDocumentFragment());
           if (!part) return;
-          let target = lines[lines.length - 1];
-          for (const className of classes) {
-            const span = document.createElement('span');
-            span.className = className;
-            target.appendChild(span);
-            target = span;
+          const target = lines[lines.length - 1];
+          if (classes.length === 0) {
+            target.appendChild(document.createTextNode(part));
+            return;
           }
-          target.appendChild(document.createTextNode(part));
+          const span = document.createElement('span');
+          span.className = Array.from(new Set(classes)).join(' ');
+          span.appendChild(document.createTextNode(part));
+          target.appendChild(span);
         });
       } else if (node.nodeType === 1) {
         const next = node.className
@@ -550,19 +552,110 @@
     return code.replace(/\r\n?/g, '\n').split('\n');
   }
 
+  function indentationOf(line) {
+    return line.match(/^\s*/)[0].length;
+  }
+
+  function sanitizeCppLine(line, state) {
+    let result = '';
+    for (let index = 0; index < line.length; index++) {
+      const char = line[index];
+      const next = line[index + 1];
+      if (state.blockComment) {
+        if (char === '*' && next === '/') {
+          state.blockComment = false;
+          result += '  ';
+          index++;
+        } else {
+          result += ' ';
+        }
+        continue;
+      }
+      if (state.string) {
+        if (char === '\\') {
+          result += '  ';
+          index++;
+          continue;
+        }
+        if (char === state.string) state.string = null;
+        result += ' ';
+        continue;
+      }
+      if (char === '/' && next === '/') {
+        result += ' '.repeat(line.length - index);
+        break;
+      }
+      if (char === '/' && next === '*') {
+        state.blockComment = true;
+        result += '  ';
+        index++;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        state.string = char;
+        result += ' ';
+        continue;
+      }
+      result += char;
+    }
+    return result;
+  }
+
+  function cppBlockLength(lines, start) {
+    let depth = 0;
+    let openLine = -1;
+    const state = {blockComment: false, string: null};
+    for (let index = start; index < lines.length; index++) {
+      const code = sanitizeCppLine(lines[index], state);
+      if (openLine < 0) {
+        const open = code.indexOf('{');
+        const semicolon = code.indexOf(';');
+        if (open < 0) {
+          if (semicolon >= 0) return null;
+          continue;
+        }
+        if (semicolon >= 0 && semicolon < open) return null;
+        openLine = index;
+      }
+      for (const char of code) {
+        if (char === '{') depth++;
+        else if (char === '}') depth--;
+        if (depth === 0 && char === '}') return index - start + 1;
+      }
+    }
+    return lines.length - start;
+  }
+
+  function hasCppInheritanceContinuation(lines, start) {
+    for (let index = start + 1; index < lines.length; index++) {
+      const line = lines[index].trim();
+      if (!line) continue;
+      return /^(?:public|private|protected)\b/.test(line);
+    }
+    return false;
+  }
+
   function hasLongClass(code) {
     const lines = splitLines(code);
     for (let start = 0; start < lines.length; start++) {
-      const declaration = lines[start].match(/^(\s*)class\s+[A-Za-z_]\w*(?:\s*\([^)]*\))?\s*:/);
-      if (!declaration) continue;
-      const indentation = declaration[1].length;
-      let end = start + 1;
-      while (end < lines.length) {
-        const line = lines[end];
-        if (line.trim().length > 0 && line.match(/^\s*/)[0].length <= indentation) break;
-        end++;
+      const line = lines[start];
+      const pythonClass = line.match(/^(\s*)class\s+[A-Za-z_]\w*(?:\s*\([^)]*\))?\s*:\s*(?:#.*)?$/);
+      if (pythonClass && !hasCppInheritanceContinuation(lines, start)) {
+        const indentation = pythonClass[1].length;
+        let end = start + 1;
+        while (end < lines.length) {
+          const current = lines[end];
+          if (current.trim().length > 0 && indentationOf(current) <= indentation) break;
+          end++;
+        }
+        if (end - start > LONG_BLOCK_LINES) return true;
+        continue;
       }
-      if (end - start > 50) return true;
+      const cpp = /^\s*(?:template\s*<[^>]*>\s*)?(?:class|struct)\s+[A-Za-z_]\w*/.test(line);
+      const template = /^\s*template\s*</.test(line);
+      if (!cpp && !template) continue;
+      const length = cppBlockLength(lines, start);
+      if (length !== null && length > LONG_BLOCK_LINES) return true;
     }
     return false;
   }
@@ -751,6 +844,80 @@
     }
   }
 
+  async function findDiff(run, state) {
+    try {
+      const previous = await getPreviousSolution(run);
+      if (!previous) return {previous: null, diff: null};
+      return {
+        previous: previous,
+        diff: makeLineDiff(splitLines(previous.code), splitLines(state.code))
+      };
+    } catch (error) {
+      run.previousReason = error && error.message || String(error);
+      return {previous: null, diff: null};
+    }
+  }
+
+  function diffUnavailableNote(run, result) {
+    if (result.previous) return 'Разность слишком большая.';
+    return 'Разность не показана: ' + run.previousReason + '.';
+  }
+
+  function renderSolution(cell, run, state, mode) {
+    cell.textContent = '';
+    cell.classList.toggle('fe-diff-cell', mode === 'diff');
+    if (run.modeCell) {
+      run.modeCell.textContent = '';
+      if (state.diffAvailable !== false) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'fe-mode-toggle';
+        toggle.textContent = mode === 'diff' ? 'Source' : 'Diff';
+        toggle.addEventListener('click', function () {
+          if (mode === 'diff') {
+            renderSolution(cell, run, state, 'full');
+          } else {
+            showDiff(cell, run, state);
+          }
+        });
+        run.modeCell.appendChild(toggle);
+      }
+    }
+    const content = document.createElement('div');
+    content.className = 'fe-solution-content';
+    cell.appendChild(content);
+    if (mode === 'diff') {
+      renderDiff(content, state.diff, state.previous, run.language, state.previous.code, state.code);
+    } else {
+      renderFullSolution(content, state.code, run.language, state.fullNote);
+    }
+  }
+
+  async function showDiff(cell, run, state) {
+    if (state.diff) {
+      renderSolution(cell, run, state, 'diff');
+      return;
+    }
+    if (state.diffLoading) return;
+    state.diffLoading = true;
+    const content = cell.querySelector('.fe-solution-content');
+    if (content) content.textContent = 'Загрузка diff…';
+    const toggle = run.modeCell && run.modeCell.querySelector('.fe-mode-toggle');
+    if (toggle) toggle.disabled = true;
+    const result = await findDiff(run, state);
+    state.diffLoading = false;
+    if (result.diff) {
+      state.previous = result.previous;
+      state.diff = result.diff;
+      state.diffAvailable = true;
+      renderSolution(cell, run, state, 'diff');
+      return;
+    }
+    state.diffAvailable = false;
+    state.fullNote = diffUnavailableNote(run, result);
+    renderSolution(cell, run, state, 'full');
+  }
+
   async function processSolution(cell, run) {
     cell.textContent = 'Загрузка решения…';
     try {
@@ -765,21 +932,30 @@
         cell.textContent = 'Исходный текст недоступен';
         return;
       }
+      const state = {
+        code: source.code,
+        previous: null,
+        diff: null,
+        diffAvailable: null,
+        diffLoading: false,
+        fullNote: ''
+      };
+      run.solutionState = state;
       if (!hasLongClass(source.code)) {
-        renderFullSolution(cell, source.code, run.language, null);
+        renderSolution(cell, run, state, 'full');
         return;
       }
       cell.textContent = 'Загрузка решения…';
-      const previous = await getPreviousSolution(run);
-      if (previous) {
-        const diff = makeLineDiff(splitLines(previous.code), splitLines(source.code));
-        if (diff) {
-          renderDiff(cell, diff, previous, run.language, previous.code, source.code);
-        } else {
-          renderFullSolution(cell, source.code, run.language, 'Разность слишком большая.');
-        }
+      const result = await findDiff(run, state);
+      if (result.diff) {
+        state.previous = result.previous;
+        state.diff = result.diff;
+        state.diffAvailable = true;
+        renderSolution(cell, run, state, 'diff');
       } else {
-        renderFullSolution(cell, source.code, run.language, 'Разность не показана: ' + run.previousReason + '.');
+        state.diffAvailable = false;
+        state.fullNote = diffUnavailableNote(run, result);
+        renderSolution(cell, run, state, 'full');
       }
     } catch (error) {
       cell.textContent = String(error && error.message || error);
@@ -811,10 +987,7 @@
       {label: 'Comment&OK', action: 'priv-submit-run-comment-and-ok', comment: true},
       {label: 'Reject', action: 'priv-submit-run-comment-and-reject', comment: true},
       {label: 'DQ', action: 'change-status', extra: {status: '10'}},
-      {label: 'Just SUMMON', action: 'priv-submit-run-just-summon'},
-      {label: '★★★', action: 'priv-submit-run-comment-and-ok', text: '★★★ 😄'},
-      {label: '★★', action: 'priv-submit-run-comment-and-ok', text: '★★ 🙂'},
-      {label: '★', action: 'priv-submit-run-comment-and-ok', text: '★ 🤢'}
+      {label: 'Just SUMMON', action: 'priv-submit-run-just-summon'}
     ];
     for (const definition of definitions) {
       const button = document.createElement('button');
@@ -824,7 +997,7 @@
         for (const other of cell.querySelectorAll('button')) other.style.background = '';
         button.style.background = '#FFFACD';
         try {
-          let message = definition.text;
+          let message;
           if (definition.comment) {
             message = commentArea.value;
             if (!message || !message.trim()) throw new Error('Нет сообщения');
@@ -898,6 +1071,10 @@
       const buttonCell = document.createElement('td');
       buttonCell.className = 'fe-buttons';
       createButtons(run, commentArea, buttonCell);
+      const modeCell = document.createElement('div');
+      modeCell.className = 'fe-mode-slot';
+      buttonCell.appendChild(modeCell);
+      run.modeCell = modeCell;
       const sourceCell = document.createElement('td');
       sourceCell.className = 'fe-source-cell';
       codeRow.appendChild(commentCell);
