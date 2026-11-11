@@ -20,7 +20,7 @@
 | `topic/fastejudge` | `044688a84` | встроенный fastEjudge с Prism | local/canonical |
 | `topic/downstream-docs` | см. ветку | политика downstream и TODO | local |
 
-Интеграционная ветка `sch179/next` собрана из `v3.14.0`; её дерево совпадает с `v3.14-sch179`.
+Интеграционная ветка `sch179/next` собрана из `v3.14.0`; её кодовая часть совпадает с `v3.14-sch179`, отличие — только документы downstream.
 
 ## Происхождение патчей
 
